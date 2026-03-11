@@ -1,0 +1,15 @@
+[Unit]
+Description=NoteFlow AI Note-Taking App
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/YOUR_USERNAME/Documents/Note_Taking_App
+ExecStart=/usr/bin/node /home/YOUR_USERNAME/Documents/Note_Taking_App/server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
