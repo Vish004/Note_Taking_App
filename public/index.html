@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NoteFlow — AI-Powered Notes</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/4.2.0/remixicon.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+</head>
+<body>
+
+  <!-- ===== DAILY QUOTE OVERLAY ===== -->
+  <div id="quote-overlay" class="overlay hidden">
+    <div class="quote-card" id="quote-card">
+      <div class="quote-bg-decoration"></div>
+      <div class="quote-icon-wrap"><i class="ri-double-quotes-l"></i></div>
+      <p class="quote-text" id="quote-text"></p>
+      <p class="quote-author" id="quote-author"></p>
+      <div class="quote-date" id="quote-date"></div>
+      <button class="btn-primary quote-start-btn" id="close-quote">
+        Start Your Day <i class="ri-arrow-right-line"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== MODALS ===== -->
+  <!-- Delete confirmation -->
+  <div id="delete-modal" class="modal-overlay hidden">
+    <div class="modal-card" id="delete-modal-card">
+      <div class="modal-icon danger"><i class="ri-delete-bin-2-line"></i></div>
+      <h3>Delete this note?</h3>
+      <p>This action cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="cancel-delete">Cancel</button>
+        <button class="btn-danger" id="confirm-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal-card settings-card" id="settings-card">
+      <div class="modal-header">
+        <h3><i class="ri-settings-4-line"></i> Settings</h3>
+        <button class="btn-icon" id="close-settings"><i class="ri-close-line"></i></button>
+      </div>
+      <div class="settings-section">
+        <h4>AI Configuration</h4>
+        <label class="form-label">Anthropic API Key</label>
+        <div class="input-with-icon">
+          <i class="ri-key-2-line"></i>
+          <input type="password" id="api-key-input" class="form-input" placeholder="sk-ant-api...">
+          <button class="btn-icon toggle-pw" id="toggle-api-key"><i class="ri-eye-line"></i></button>
+        </div>
+        <p class="form-hint">Stored locally in your browser. Never sent anywhere except Anthropic.</p>
+      </div>
+      <div class="settings-section">
+        <h4>Appearance</h4>
+        <div class="setting-row">
+          <span>Theme</span>
+          <div class="theme-toggle-group">
+            <button class="theme-opt active" data-theme="dark"><i class="ri-moon-line"></i> Dark</button>
+            <button class="theme-opt" data-theme="light"><i class="ri-sun-line"></i> Light</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <span>Show daily quote on open</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="show-quote-toggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <button class="btn-primary full-width" id="save-settings">Save Settings</button>
+    </div>
+  </div>
+
+  <!-- Reminder -->
+  <div id="reminder-modal" class="modal-overlay hidden">
+    <div class="modal-card" id="reminder-card">
+      <div class="modal-header">
+        <h3><i class="ri-alarm-line"></i> Set Reminder</h3>
+        <button class="btn-icon" id="close-reminder"><i class="ri-close-line"></i></button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date & Time</label>
+        <input type="datetime-local" id="reminder-datetime" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">For note</label>
+        <input type="text" id="reminder-note-preview" class="form-input" readonly>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="clear-reminder">
+          <i class="ri-alarm-warning-line"></i> Clear
+        </button>
+        <button class="btn-primary" id="save-reminder">
+          <i class="ri-check-line"></i> Set Reminder
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MAIN APP ===== -->
+  <div id="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon"><i class="ri-sparkling-2-fill"></i></div>
+        <span class="logo-text">NoteFlow</span>
+        <button class="btn-icon sidebar-collapse-btn" id="collapse-sidebar" title="Collapse sidebar">
+          <i class="ri-sidebar-fold-line"></i>
+        </button>
+      </div>
+
+      <button class="btn-new-note" id="new-note-btn">
+        <i class="ri-add-line"></i>
+        <span>New Note</span>
+      </button>
+
+      <nav class="sidebar-nav">
+        <a class="nav-item active" data-view="all">
+          <i class="ri-sticky-note-2-line"></i>
+          <span>All Notes</span>
+          <span class="nav-badge" id="count-all">0</span>
+        </a>
+        <a class="nav-item" data-view="favorites">
+          <i class="ri-heart-line"></i>
+          <span>Favorites</span>
+          <span class="nav-badge" id="count-favorites">0</span>
+        </a>
+        <a class="nav-item" data-view="reminders">
+          <i class="ri-alarm-line"></i>
+          <span>Reminders</span>
+          <span class="nav-badge" id="count-reminders">0</span>
+        </a>
+        <a class="nav-item" data-view="calendar">
+          <i class="ri-calendar-2-line"></i>
+          <span>Calendar</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-section">
+        <h5 class="sidebar-label">PRIORITY</h5>
+        <div class="priority-filters">
+          <button class="pf-btn active" data-priority="all">All</button>
+          <button class="pf-btn" data-priority="urgent">
+            <span class="pdot urgent"></span>Urgent
+          </button>
+          <button class="pf-btn" data-priority="high">
+            <span class="pdot high"></span>High
+          </button>
+          <button class="pf-btn" data-priority="medium">
+            <span class="pdot medium"></span>Medium
+          </button>
+          <button class="pf-btn" data-priority="low">
+            <span class="pdot low"></span>Low
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-section" id="tags-section">
+        <h5 class="sidebar-label">TAGS</h5>
+        <div class="tag-cloud" id="tag-cloud"></div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="sidebar-footer-btn" id="settings-btn" title="Settings">
+          <i class="ri-settings-4-line"></i>
+          <span>Settings</span>
+        </button>
+        <span class="notes-stat" id="total-notes-stat">0 notes</span>
+      </div>
+    </aside>
+
+    <!-- MAIN PANEL -->
+    <main class="main-panel">
+      <!-- Topbar -->
+      <div class="topbar">
+        <button class="btn-icon mobile-only" id="toggle-sidebar-mobile">
+          <i class="ri-menu-line"></i>
+        </button>
+        <div class="search-wrapper">
+          <i class="ri-search-line"></i>
+          <input type="text" id="search-input" class="search-input" placeholder="Search notes, tags, content...">
+          <button class="search-clear hidden" id="search-clear"><i class="ri-close-line"></i></button>
+        </div>
+        <div class="topbar-right">
+          <div class="layout-btns">
+            <button class="btn-icon layout-btn active" data-layout="grid" title="Grid view">
+              <i class="ri-layout-grid-2-line"></i>
+            </button>
+            <button class="btn-icon layout-btn" data-layout="list" title="List view">
+              <i class="ri-list-check"></i>
+            </button>
+          </div>
+          <button class="btn-icon" id="topbar-settings-btn" title="Settings">
+            <i class="ri-settings-4-line"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- NOTES VIEW -->
+      <div id="view-notes" class="view active">
+        <div class="view-header">
+          <div class="view-header-left">
+            <h2 class="view-title" id="view-title">All Notes</h2>
+            <span class="view-subtitle" id="view-subtitle"></span>
+          </div>
+          <select class="sort-select" id="sort-select">
+            <option value="updatedAt-desc">Recently Updated</option>
+            <option value="createdAt-desc">Recently Created</option>
+            <option value="title-asc">Title A–Z</option>
+            <option value="priority-desc">By Priority</option>
+          </select>
+        </div>
+        <div id="notes-container" class="notes-grid"></div>
+        <div id="empty-state" class="empty-state hidden">
+          <div class="empty-anim" id="empty-anim"></div>
+          <h3>No notes here</h3>
+          <p id="empty-message">Create your first note to get started.</p>
+          <button class="btn-primary" id="empty-new-btn">
+            <i class="ri-add-line"></i> New Note
+          </button>
+        </div>
+      </div>
+
+      <!-- CALENDAR VIEW -->
+      <div id="view-calendar" class="view hidden">
+        <div class="view-header">
+          <h2 class="view-title">Calendar</h2>
+          <div class="cal-nav">
+            <button class="btn-icon" id="cal-prev"><i class="ri-arrow-left-s-line"></i></button>
+            <span class="cal-month-label" id="cal-month-year"></span>
+            <button class="btn-icon" id="cal-next"><i class="ri-arrow-right-s-line"></i></button>
+            <button class="btn-secondary cal-today-btn" id="cal-today">Today</button>
+          </div>
+        </div>
+        <div id="calendar-grid" class="calendar-grid"></div>
+        <div class="calendar-day-notes" id="calendar-day-notes">
+          <h4 id="calendar-day-title"></h4>
+          <div id="calendar-day-list"></div>
+        </div>
+      </div>
+
+      <!-- REMINDERS VIEW -->
+      <div id="view-reminders" class="view hidden">
+        <div class="view-header">
+          <h2 class="view-title">Reminders</h2>
+        </div>
+        <div id="reminders-container"></div>
+        <div id="reminders-empty" class="empty-state hidden">
+          <div class="empty-icon"><i class="ri-alarm-line"></i></div>
+          <h3>No reminders set</h3>
+          <p>Open a note and tap the alarm icon to set a reminder.</p>
+        </div>
+      </div>
+    </main>
+
+    <!-- EDITOR PANEL -->
+    <div class="editor-panel hidden" id="editor-panel">
+      <!-- Editor Topbar -->
+      <div class="editor-topbar">
+        <button class="btn-icon" id="close-editor" title="Close">
+          <i class="ri-arrow-right-s-line"></i>
+        </button>
+        <div class="editor-topbar-actions">
+          <button class="btn-icon et-action" id="toggle-like" title="Favorite">
+            <i class="ri-heart-line"></i>
+          </button>
+          <button class="btn-icon et-action" id="set-reminder-btn" title="Set Reminder">
+            <i class="ri-alarm-line"></i>
+          </button>
+          <button class="btn-icon et-action" id="export-note-btn" title="Export">
+            <i class="ri-download-2-line"></i>
+          </button>
+          <button class="btn-icon et-action ai-toggle-btn" id="toggle-ai-panel" title="AI Assistant">
+            <i class="ri-sparkling-2-line"></i>
+          </button>
+          <button class="btn-icon et-action danger-action" id="delete-note-btn" title="Delete note">
+            <i class="ri-delete-bin-line"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Note Metadata -->
+      <div class="editor-meta">
+        <input type="text" id="note-title" class="note-title-input" placeholder="Untitled note...">
+        <div class="meta-row">
+          <select class="priority-select" id="priority-select">
+            <option value="none">No Priority</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+          <div class="type-switcher">
+            <button class="type-btn active" data-type="note" id="btn-type-note">
+              <i class="ri-file-text-line"></i> Note
+            </button>
+            <button class="type-btn" data-type="checklist" id="btn-type-checklist">
+              <i class="ri-checkbox-line"></i> Checklist
+            </button>
+          </div>
+          <div class="due-date-wrap">
+            <i class="ri-calendar-event-line"></i>
+            <input type="date" id="due-date-input" class="date-input" title="Due date">
+          </div>
+        </div>
+        <div class="tags-row">
+          <i class="ri-price-tag-3-line tag-icon"></i>
+          <div class="tags-pills" id="tags-pills"></div>
+          <input type="text" id="tag-input" class="tag-text-input" placeholder="Add tag + Enter">
+        </div>
+        <div class="color-row">
+          <span class="color-label">Color:</span>
+          <div class="color-swatches" id="color-swatches">
+            <button class="swatch active" data-color="none" style="background:var(--surface-2)" title="Default"></button>
+            <button class="swatch" data-color="#0d1b2a" style="background:#0d1b2a" title="Navy"></button>
+            <button class="swatch" data-color="#0d2010" style="background:#0d2010" title="Forest"></button>
+            <button class="swatch" data-color="#2a0d0d" style="background:#2a0d0d" title="Crimson"></button>
+            <button class="swatch" data-color="#1a0d2a" style="background:#1a0d2a" title="Purple"></button>
+            <button class="swatch" data-color="#0d2a2a" style="background:#0d2a2a" title="Teal"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formatting Toolbar (note mode) -->
+      <div class="editor-toolbar" id="note-toolbar">
+        <button class="tb-btn" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+        <button class="tb-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+        <button class="tb-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+        <button class="tb-btn" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+        <div class="tb-divider"></div>
+        <button class="tb-btn" data-cmd="insertOrderedList" title="Numbered list"><i class="ri-list-ordered"></i></button>
+        <button class="tb-btn" data-cmd="insertUnorderedList" title="Bullet list"><i class="ri-list-unordered"></i></button>
+        <div class="tb-divider"></div>
+        <button class="tb-btn" data-cmd="formatBlock" data-val="blockquote" title="Quote"><i class="ri-double-quotes-l"></i></button>
+        <button class="tb-btn" data-cmd="insertHorizontalRule" title="Divider"><i class="ri-separator"></i></button>
+        <div class="tb-divider"></div>
+        <button class="tb-btn" id="copy-note-btn" title="Copy content"><i class="ri-file-copy-line"></i></button>
+      </div>
+
+      <!-- Checklist Toolbar -->
+      <div class="editor-toolbar hidden" id="checklist-toolbar">
+        <button class="tb-btn" id="check-all-btn"><i class="ri-checkbox-multiple-line"></i> Check All</button>
+        <button class="tb-btn" id="uncheck-all-btn"><i class="ri-checkbox-blank-line"></i> Uncheck All</button>
+        <button class="tb-btn" id="clear-checked-btn"><i class="ri-delete-bin-2-line"></i> Clear Done</button>
+        <div class="tb-divider"></div>
+        <span class="checklist-progress" id="checklist-progress">0 / 0</span>
+      </div>
+
+      <!-- Note content (rich text) -->
+      <div
+        id="note-content"
+        class="note-editor"
+        contenteditable="true"
+        spellcheck="true"
+        data-placeholder="Start writing your note..."
+      ></div>
+
+      <!-- Checklist content -->
+      <div id="checklist-content" class="checklist-editor hidden">
+        <div id="checklist-items" class="checklist-items"></div>
+        <button class="add-item-btn" id="add-item-btn">
+          <i class="ri-add-line"></i> Add item
+        </button>
+      </div>
+
+      <!-- Editor Footer -->
+      <div class="editor-footer">
+        <span class="word-count" id="word-count">0 words</span>
+        <span class="autosave-status" id="autosave-status"></span>
+        <span class="note-timestamps" id="note-timestamps"></span>
+      </div>
+
+      <!-- AI Panel -->
+      <div class="ai-panel hidden" id="ai-panel">
+        <div class="ai-panel-header">
+          <div class="ai-panel-title">
+            <i class="ri-sparkling-2-fill"></i>
+            <span>AI Assistant</span>
+          </div>
+          <button class="btn-icon" id="close-ai-panel"><i class="ri-close-line"></i></button>
+        </div>
+        <div class="ai-quick-actions">
+          <button class="ai-quick-btn" id="ai-summarize" title="Summarize this note">
+            <i class="ri-file-reduce-line"></i>
+            <span>Summarize</span>
+          </button>
+          <button class="ai-quick-btn" id="ai-expand" title="Expand ideas">
+            <i class="ri-expand-diagonal-line"></i>
+            <span>Expand</span>
+          </button>
+          <button class="ai-quick-btn" id="ai-tasks" title="Extract action items">
+            <i class="ri-task-line"></i>
+            <span>Extract Tasks</span>
+          </button>
+          <button class="ai-quick-btn" id="ai-improve" title="Improve writing">
+            <i class="ri-magic-line"></i>
+            <span>Improve</span>
+          </button>
+        </div>
+        <div class="ai-conversation">
+          <div class="ai-messages" id="ai-messages"></div>
+          <div class="ai-input-row">
+            <input type="text" id="ai-chat-input" placeholder="Ask anything about this note...">
+            <button class="ai-send-btn" id="ai-send-btn">
+              <i class="ri-send-plane-fill"></i>
+            </button>
+          </div>
+        </div>
+        <div class="ai-notice" id="ai-notice"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- Scripts (order matters) -->
+  <script src="js/quotes.js"></script>
+  <script src="js/animations.js"></script>
+  <script src="js/notes.js"></script>
+  <script src="js/reminders.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
