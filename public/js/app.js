@@ -101,53 +101,70 @@
     // Stagger animation
     Anim.staggerIn(container.querySelectorAll('.note-card'), 45);
 
-    // Bind card clicks
-    container.querySelectorAll('.note-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (e.target.closest('.note-card-action') || e.target.closest('.nc-more-wrap')) return;
-        openNote(card.dataset.id);
-      });
-
-      // Like button on card
-      const likeBtn = card.querySelector('.nc-like');
-      if (likeBtn) {
-        likeBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          toggleLike(card.dataset.id, likeBtn);
-        });
-      }
-
-      // 3-dot menu
-      const moreBtn  = card.querySelector('.nc-more');
-      const dropdown = card.querySelector('.nc-dropdown');
-      if (moreBtn && dropdown) {
-        moreBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const isOpen = dropdown.classList.contains('open');
-          // Close all open dropdowns first
-          document.querySelectorAll('.nc-dropdown.open').forEach(d => d.classList.remove('open'));
-          if (!isOpen) dropdown.classList.add('open');
-        });
-
-        dropdown.querySelectorAll('.nc-dd-item').forEach(item => {
-          item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dropdown.classList.remove('open');
-            const action = item.dataset.action;
-            const id = card.dataset.id;
-            if (action === 'open')      openNote(id);
-            if (action === 'duplicate') duplicateNote(id);
-            if (action === 'delete') {
-              state.currentNoteId = id;
-              openDeleteModal();
-            }
-          });
-        });
-      }
-    });
+    // Bind events for all cards
+    container.querySelectorAll('.note-card').forEach(card => bindCardEvents(card));
 
     updateCounts();
     renderTagCloud();
+  }
+
+  // Bind click/like/dropdown events to a single card element
+  function bindCardEvents(card) {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.note-card-action') || e.target.closest('.nc-more-wrap')) return;
+      openNote(card.dataset.id);
+    });
+
+    const likeBtn = card.querySelector('.nc-like');
+    if (likeBtn) {
+      likeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleLike(card.dataset.id, likeBtn);
+      });
+    }
+
+    const moreBtn  = card.querySelector('.nc-more');
+    const dropdown = card.querySelector('.nc-dropdown');
+    if (moreBtn && dropdown) {
+      moreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = dropdown.classList.contains('open');
+        document.querySelectorAll('.nc-dropdown.open').forEach(d => d.classList.remove('open'));
+        if (!isOpen) dropdown.classList.add('open');
+      });
+
+      dropdown.querySelectorAll('.nc-dd-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          dropdown.classList.remove('open');
+          const action = item.dataset.action;
+          const id = card.dataset.id;
+          if (action === 'open')      openNote(id);
+          if (action === 'duplicate') duplicateNote(id);
+          if (action === 'delete') {
+            state.currentNoteId = id;
+            openDeleteModal();
+          }
+        });
+      });
+    }
+  }
+
+  // Patch a single card in-place without a full list re-render
+  function updateNoteCard(id) {
+    const container = document.getElementById('notes-container');
+    const existing  = container ? container.querySelector(`[data-id="${id}"]`) : null;
+    if (!existing) return; // card is filtered out — nothing to patch
+    const note = Notes.getById(id);
+    if (!note) return;
+
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderNoteCard(note).trim();
+    const newCard = tmp.firstElementChild;
+
+    if (state.currentNoteId === id) newCard.classList.add('active');
+    existing.replaceWith(newCard);
+    bindCardEvents(newCard);
   }
 
   function renderNoteCard(note) {
@@ -331,7 +348,11 @@
     Anim.slideInRight(panel);
 
     populateEditor(note);
-    renderNotes(); // refresh active state
+
+    // Update active state without full re-render
+    document.querySelectorAll('.note-card').forEach(c => c.classList.remove('active'));
+    const activeCard = document.querySelector(`.note-card[data-id="${id}"]`);
+    if (activeCard) activeCard.classList.add('active');
   }
 
   function closeEditor() {
@@ -561,7 +582,7 @@
     }, 2000);
 
     updateWordCount(Notes.getById(id));
-    renderNotes();
+    updateNoteCard(id);  // patch only this card — no full re-render flash
     updateCounts();
   }
 
@@ -978,7 +999,7 @@
       updateEditorLikeBtn(updated.liked);
       Anim.heartBeat(document.getElementById('toggle-like'));
       updateCounts();
-      renderNotes();
+      updateNoteCard(state.currentNoteId);
     });
 
     // ---- Reminder ----
@@ -997,7 +1018,7 @@
       closeReminderModal();
       toast('Reminder set.', 'success');
       updateCounts();
-      renderNotes();
+      updateNoteCard(state.currentNoteId);
     });
     document.getElementById('clear-reminder').addEventListener('click', () => {
       Notes.update(state.currentNoteId, { reminder: null });
@@ -1005,7 +1026,7 @@
       closeReminderModal();
       toast('Reminder cleared.', 'info');
       updateCounts();
-      renderNotes();
+      updateNoteCard(state.currentNoteId);
     });
 
     // ---- Delete ----
@@ -1037,7 +1058,7 @@
         document.getElementById('editor-panel').style.background =
           color && color !== 'none' ? color : '';
         scheduleAutosave();
-        renderNotes();
+        updateNoteCard(state.currentNoteId);
       });
     });
 
@@ -1053,7 +1074,7 @@
           Notes.update(state.currentNoteId, { tags: newTags });
           renderTagPills(newTags);
           renderTagCloud();
-          renderNotes();
+          updateNoteCard(state.currentNoteId);
         }
         e.target.value = '';
       }
